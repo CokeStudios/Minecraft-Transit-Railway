@@ -140,6 +140,7 @@
 	"command.mtr.generate_filter": "Path generation for depots matching \"%s\" started",
 	"entity.mtr.seat": "",
 	"gui.mtr.acceleration": "Vehicle Acceleration",
+	"gui.mtr.braking_power": "Vehicle Braking Power",
 	"gui.mtr.add_balance_for_emeralds": "Add $%s for %s emerald(s)",
 	"gui.mtr.add_depot": "Add Depot",
 	"gui.mtr.add_exit": "Add Station Exit",
