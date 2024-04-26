@@ -100,7 +100,7 @@ public class EditDepotScreen extends EditNameColorScreenBase<Depot> {
 			saveData();
 			final ObjectArrayList<DashboardListItem> routes = new ObjectArrayList<>(MinecraftClientData.getFilteredDataSet(transportMode, MinecraftClientData.getDashboardInstance().routes));
 			Collections.sort(routes);
-			MinecraftClient.getInstance().openScreen(new Screen(new DashboardListSelectorScreen(this, new ObjectImmutableList<>(routes), data.getRouteIds(), false, true)));
+			MinecraftClient.getInstance().openScreen(new Screen(new RouteSelectorScreen(this, new ObjectImmutableList<>(routes), data.getRouteIds(), depot)));
 		});
 		buttonGenerateRoute = new ButtonWidgetExtension(0, 0, 0, SQUARE_SIZE, TextHelper.translatable("gui.mtr.refresh_path"), button -> {
 			saveData();
