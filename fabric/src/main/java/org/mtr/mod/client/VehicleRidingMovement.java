@@ -95,23 +95,23 @@ public class VehicleRidingMovement {
 	public static void startRiding(ObjectArrayList<Box> openDoorways, long sidingId, long vehicleId, int carNumber, double x, double y, double z, double yaw) {
 		if (ridingVehicleId == 0 || isRiding(vehicleId)) {
 			for (final Box doorway : openDoorways) {
-				// if (RenderVehicleHelper.boxContains(doorway, x, y, z)) {
-				ridingSidingId = sidingId;
-				ridingVehicleId = vehicleId;
-				ridingVehicleCarNumber = carNumber;
-				ridingVehicleX = x;
-				ridingVehicleY = y;
-				ridingVehicleZ = z;
-				isOnGangway = false;
-				ridingPositionCacheOld = null;
-				ridingPositionCache = null;
-				ridingYawDifferenceOld = null;
-				ridingYawDifference = null;
-				previousVehicleYaw = yaw;
-				if (ridingVehicleId == 0) {
-					sendUpdate(false);
+				if (RenderVehicleHelper.boxContains(doorway, x, y, z)) {
+					ridingSidingId = sidingId;
+					ridingVehicleId = vehicleId;
+					ridingVehicleCarNumber = carNumber;
+					ridingVehicleX = x;
+					ridingVehicleY = y;
+					ridingVehicleZ = z;
+					isOnGangway = false;
+					ridingPositionCacheOld = null;
+					ridingPositionCache = null;
+					ridingYawDifferenceOld = null;
+					ridingYawDifference = null;
+					previousVehicleYaw = yaw;
+					if (ridingVehicleId == 0) {
+						sendUpdate(false);
+					}
 				}
-				// }
 			}
 		}
 	}
