@@ -46,10 +46,9 @@ public class BetaWarningScreen extends ScreenExtension implements IGui, Utilitie
 
 		int i = SQUARE_SIZE * 2;
 		graphicsHolder.drawCenteredText("Please back up your worlds before continuing!", width / 2, i += TEXT_HEIGHT, System.currentTimeMillis() % 1000 < 500 ? 0xFFFF00 : 0xFF9900);
-		i = wrapAndRender(graphicsHolder, "- Some small features have not been implemented yet, such as manual driving and scrolling text displays.", i + SQUARE_SIZE);
-		i = wrapAndRender(graphicsHolder, "- There might be minor migration issues when loading older worlds.", i);
-		i = wrapAndRender(graphicsHolder, "- Remember that version 4.0.0 is a complete rewrite from the ground up. Years of hard work have finally paid off! If you would like to support mod development, please consider subscribing to the Patreon.", i);
-		i = wrapAndRender(graphicsHolder, "- To keep up with the latest updates, subscribe on YouTube!", i);
+		i = wrapAndRender(graphicsHolder, "- We are very close to the official release of 4.0.0. Please report any bugs you find!", i + SQUARE_SIZE);
+		i = wrapAndRender(graphicsHolder, "- If you find any issues with the Resource Pack Creator, please let me know.", i);
+		i = wrapAndRender(graphicsHolder, "- Manual driving still has NOT been implemented yet!", i);
 		graphicsHolder.drawCenteredText("Thank you and enjoy :)", width / 2, i, ARGB_WHITE);
 
 		graphicsHolder.push();
@@ -82,10 +81,10 @@ public class BetaWarningScreen extends ScreenExtension implements IGui, Utilitie
 
 	@Override
 	public void onClose2() {
-		super.onClose2();
 		if (openTime >= FORCE_OPEN_DURATION) {
 			Config.getClient().hideBetaWarningScreen();
 			Config.save();
+			super.onClose2();
 		}
 	}
 

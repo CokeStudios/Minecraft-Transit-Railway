@@ -146,6 +146,31 @@
 				"CYCLE_LANGUAGES"
 			],
 			"displayType": "ROUTE_NUMBER"
+		},
+		{
+			"names": [
+				"front_route_color_display"
+			],
+			"positionDefinitions": [
+				"end2"
+			],
+			"type": "DISPLAY",
+			"displayType": "ROUTE_COLOR_ROUNDED"
+		},
+		{
+			"names": [
+				"next_station_display_head"
+			],
+			"positionDefinitions": [
+				"end2"
+			],
+			"type": "DISPLAY",
+			"displayXPadding": 0.2,
+			"displayColor": "FFFFFF",
+			"displayOptions": [
+				"SCROLL_NORMAL"
+			],
+			"displayType": "NEXT_STATION_KCR"
 		}
 	],
 	"modelYOffset": 1
