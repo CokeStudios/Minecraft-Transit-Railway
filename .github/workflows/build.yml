@@ -33,8 +33,9 @@ jobs:
       - name: Setup Fabric files
         if: ${{ matrix.minecraft != '1.20.4' }}
         run: ./gradlew fabric:setupFiles -PminecraftVersion="${{ matrix.minecraft }}" -PcrowdinApiKey="${{ secrets.CROWDIN_API_KEY }}" -PpatreonApiKey="${{ secrets.PATREON_API_KEY }}"
-      - name: Setup Forge files
-        run: ./gradlew forge:setupFiles -PminecraftVersion="${{ matrix.minecraft }}"
+      - name: Setup Fabric files
+        if: ${{ matrix.minecraft == '1.20.4' }}
+        run: ./gradlew fabric:setupFiles -PminecraftVersion="${{ matrix.minecraft }}" -PcrowdinApiKey="${{ secrets.CROWDIN_API_KEY }}" -PpatreonApiKey="${{ secrets.PATREON_API_KEY }}" -PgeminiApiKey="${{ secrets.GEMINI_API_KEY }}"
       - name: Build ${{ matrix.minecraft }}
         run: ./gradlew build -PminecraftVersion="${{ matrix.minecraft }}"
       - name: Build ${{ matrix.minecraft }} (server)
@@ -42,7 +43,7 @@ jobs:
       - name: Capture release artifacts
         uses: actions/upload-artifact@main
         with:
-          name: Fabric and Forge ${{ matrix.minecraft }}
+          name: Fabric ${{ matrix.minecraft }}
           path: build/release/
       - name: Post Crowdin translation analysis
         if: ${{ matrix.minecraft == '1.20.4' }}
