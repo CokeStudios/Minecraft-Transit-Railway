@@ -123,7 +123,7 @@ public class RenderVehicles implements IGui {
 							});
 
 							// Check and mount player
-							VehicleRidingMovement.startRiding(openDoorways, vehicle.vehicleExtraData.getSidingId(), vehicle.getId(), carNumber, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), renderVehicleTransformationHelperAbsolute.yaw);
+							VehicleRidingMovement.startRiding(floorsAndDoorways, vehicle.vehicleExtraData.getSidingId(), vehicle.getId(), carNumber, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), renderVehicleTransformationHelperAbsolute.yaw);
 						}
 
 						// Play vehicle sounds
