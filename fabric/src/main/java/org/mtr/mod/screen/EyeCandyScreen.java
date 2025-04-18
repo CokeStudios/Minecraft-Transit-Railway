@@ -55,7 +55,7 @@ public class EyeCandyScreen extends ScreenExtension implements IGui {
 			}
 		}
 
-		buttonSelectModel = new ButtonWidgetExtension(0, 0, 0, SQUARE_SIZE, button -> MinecraftClient.getInstance().openScreen(new Screen(new EyeCandyObjectSelectionScreen(this, new ObjectImmutableList<>(objectsForList), selectedModelIndices, this::sendUpdate))));
+		buttonSelectModel = new ButtonWidgetExtension(0, 0, 0, SQUARE_SIZE, button -> MinecraftClient.getInstance().openScreen(new Screen(new EyeCandyObjectSelectionScreen(new ObjectImmutableList<>(objectsForList), selectedModelIndices, this::sendUpdate, this))));
 		buttonSelectModel.setMessage2(new Text(TextHelper.translatable("selectWorld.edit").data));
 		textFieldTranslateX = new TextFieldWidgetExtension(0, 0, 0, SQUARE_SIZE, MAX_NUMBER_TEXT_LENGTH, TextCase.DEFAULT, "[^\\d.-]", null);
 		textFieldTranslateX.setChangedListener2(text -> sendUpdate());
@@ -91,9 +91,9 @@ public class EyeCandyScreen extends ScreenExtension implements IGui {
 		textFieldTranslateX.setText2(String.valueOf(blockEntity.getTranslateX()));
 		textFieldTranslateY.setText2(String.valueOf(blockEntity.getTranslateY()));
 		textFieldTranslateZ.setText2(String.valueOf(blockEntity.getTranslateZ()));
-		textFieldRotateX.setText2(String.valueOf(blockEntity.getRotateX()));
-		textFieldRotateY.setText2(String.valueOf(blockEntity.getRotateY()));
-		textFieldRotateZ.setText2(String.valueOf(blockEntity.getRotateZ()));
+		textFieldRotateX.setText2(String.valueOf(Math.toDegrees(blockEntity.getRotateX())));
+		textFieldRotateY.setText2(String.valueOf(Math.toDegrees(blockEntity.getRotateY())));
+		textFieldRotateZ.setText2(String.valueOf(Math.toDegrees(blockEntity.getRotateZ())));
 		buttonFullBrightness.setChecked(blockEntity.getFullBrightness());
 
 		addChild(new ClickableWidget(buttonSelectModel));
@@ -144,9 +144,9 @@ public class EyeCandyScreen extends ScreenExtension implements IGui {
 				parse(textFieldTranslateX.getText2()),
 				parse(textFieldTranslateY.getText2()),
 				parse(textFieldTranslateZ.getText2()),
-				parse(textFieldRotateX.getText2()),
-				parse(textFieldRotateY.getText2()),
-				parse(textFieldRotateZ.getText2()),
+				(float) Math.toRadians(parse(textFieldRotateX.getText2())),
+				(float) Math.toRadians(parse(textFieldRotateY.getText2())),
+				(float) Math.toRadians(parse(textFieldRotateZ.getText2())),
 				buttonFullBrightness.isChecked2()
 		));
 	}

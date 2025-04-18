@@ -19,6 +19,7 @@ import org.mtr.mod.entity.EntityRendering;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.awt.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -79,6 +80,7 @@ public class MainRenderer extends EntityRenderer<EntityRendering> implements IGu
 			millisElapsed = 0;
 		} else {
 			millisElapsed = getMillisElapsed();
+			MinecraftClientData.getInstance().blockedRailIds.clear();
 			MinecraftClientData.getInstance().vehicles.forEach(vehicle -> vehicle.simulate(millisElapsed));
 			MinecraftClientData.getInstance().lifts.forEach(lift -> lift.tick(millisElapsed));
 			lastRenderedMillis = InitClient.getGameMillis();
@@ -122,6 +124,9 @@ public class MainRenderer extends EntityRenderer<EntityRendering> implements IGu
 						case LIGHT_TRANSLUCENT:
 							renderLayer = MoreRenderLayers.getLight(key, true);
 							break;
+						case LIGHT_2:
+							renderLayer = MoreRenderLayers.getLight2(key);
+							break;
 						case INTERIOR:
 							renderLayer = MoreRenderLayers.getInterior(key);
 							break;
@@ -164,6 +169,7 @@ public class MainRenderer extends EntityRenderer<EntityRendering> implements IGu
 
 	public static void cancelRender(Identifier identifier) {
 		RENDERS.forEach(renderForPriority -> renderForPriority.forEach(renderForPriorityAndQueuedRenderLayer -> renderForPriorityAndQueuedRenderLayer.remove(identifier)));
+		CURRENT_RENDERS.forEach(renderForPriority -> renderForPriority.forEach(renderForPriorityAndQueuedRenderLayer -> renderForPriorityAndQueuedRenderLayer.remove(identifier)));
 	}
 
 	public static String getInterchangeRouteNames(Consumer<BiConsumer<String, InterchangeColorsForStationName>> getInterchanges) {
@@ -173,8 +179,18 @@ public class MainRenderer extends EntityRenderer<EntityRendering> implements IGu
 	}
 
 	public static int getFlashingLight() {
-		final int light = (int) Math.round((Math.sin(Math.PI * 2 * (System.currentTimeMillis() % FLASHING_INTERVAL) / FLASHING_INTERVAL) + 1) / 2 * 0xF);
+		final int light = (int) Math.round(((Math.sin(Math.PI * 2 * (System.currentTimeMillis() % FLASHING_INTERVAL) / FLASHING_INTERVAL) + 1) / 2) * 0xF);
 		return LightmapTextureManager.pack(light, light);
+	}
+
+	public static int getFlashingColor(int color, int multiplier) {
+		final double flashingProgress = ((Math.sin(Math.PI * 2 * (System.currentTimeMillis() % FLASHING_INTERVAL) / FLASHING_INTERVAL) + 1) / 2);
+		final Color oldColor = new Color(color);
+		return new Color(
+				(int) (oldColor.getRed() * Math.min(1, flashingProgress * multiplier)),
+				(int) (oldColor.getGreen() * Math.min(1, flashingProgress * multiplier)),
+				(int) (oldColor.getBlue() * Math.min(1, flashingProgress * multiplier))
+		).getRGB();
 	}
 
 	private static long getMillisElapsed() {

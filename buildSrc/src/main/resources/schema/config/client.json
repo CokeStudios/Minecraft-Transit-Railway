@@ -19,6 +19,10 @@
 		"languageDisplay": {
 			"$ref": "LanguageDisplay"
 		},
+		"vehicleOscillationMultiplier": {
+			"type": "number",
+			"default": 1.0
+		},
 		"dynamicTextureResolution": {
 			"type": "integer",
 			"default": 2
@@ -27,8 +31,14 @@
 			"type": "boolean",
 			"default": true
 		},
+		"useMTRFont": {
+			"type": "boolean"
+		},
 		"disableShadowsForShaders": {
 			"type": "boolean"
+		},
+		"preloadResourcePattern": {
+			"type": "string"
 		},
 		"betaWarningVersion": {
 			"type": "string"

@@ -6,16 +6,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.mtr.core.Main;
 import org.mtr.core.data.Position;
-import org.mtr.core.operation.GenerateOrClearByDepotName;
+import org.mtr.core.operation.DepotOperationByName;
 import org.mtr.core.operation.SetTime;
+import org.mtr.core.serializer.SerializedDataBase;
+import org.mtr.core.servlet.OperationProcessor;
+import org.mtr.core.servlet.QueueObject;
 import org.mtr.core.servlet.Webserver;
-import org.mtr.core.simulation.Simulator;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.com.google.gson.JsonElement;
 import org.mtr.libraries.com.google.gson.JsonParser;
+import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.libraries.org.eclipse.jetty.servlet.ServletHolder;
 import org.mtr.mapping.holder.*;
 import org.mtr.mapping.mapper.GameRule;
 import org.mtr.mapping.mapper.MinecraftServerHelper;
@@ -23,33 +25,38 @@ import org.mtr.mapping.mapper.WorldHelper;
 import org.mtr.mapping.registry.CommandBuilder;
 import org.mtr.mapping.registry.Registry;
 import org.mtr.mapping.tool.DummyClass;
+import org.mtr.mixin.PlayerTeleportationStateAccessor;
 import org.mtr.mod.config.Config;
 import org.mtr.mod.data.ArrivalsCacheServer;
 import org.mtr.mod.data.RailActionModule;
 import org.mtr.mod.generated.lang.TranslationProvider;
 import org.mtr.mod.packet.*;
-import org.mtr.mod.servlet.VehicleLiftServlet;
+import org.mtr.mod.servlet.MinecraftOperationProcessor;
+import org.mtr.mod.servlet.RequestHelper;
 
 import javax.annotation.Nullable;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 public final class Init implements Utilities {
 
 	private static Main main;
-	private static Webserver webserver;
 	private static int serverPort;
 	private static Runnable sendWorldTimeUpdate;
 	private static boolean canSendWorldTimeUpdate = true;
 	private static int serverTick;
 	private static long lastSavedMillis;
+	private static Consumer<Webserver> webserverSetup;
 
 	public static final String MOD_ID = "mtr";
 	public static final String MOD_ID_NTE = "mtrsteamloco";
@@ -57,12 +64,15 @@ public final class Init implements Utilities {
 	public static final Registry REGISTRY = new Registry();
 	public static final int SECONDS_PER_MC_HOUR = 50;
 	public static final int AUTOSAVE_INTERVAL = 30000;
+	public static final RequestHelper REQUEST_HELPER = new RequestHelper();
 
 	private static final int MILLIS_PER_MC_DAY = SECONDS_PER_MC_HOUR * MILLIS_PER_SECOND * HOURS_PER_DAY;
 	private static final Object2ObjectArrayMap<ServerWorld, RailActionModule> RAIL_ACTION_MODULES = new Object2ObjectArrayMap<>();
 	private static final ObjectArrayList<String> WORLD_ID_LIST = new ObjectArrayList<>();
+	private static final Object2ObjectAVLTreeMap<UUID, Runnable> RIDING_PLAYERS = new Object2ObjectAVLTreeMap<>();
 
 	public static void init() {
+		LOGGER.info("Starting Minecraft with arguments:\n{}", String.join("\n", ManagementFactory.getRuntimeMXBean().getInputArguments()));
 		AsciiArt.print();
 		Blocks.init();
 		Items.init();
@@ -76,9 +86,11 @@ public final class Init implements Utilities {
 		REGISTRY.setupPackets(new Identifier(MOD_ID, "packet"));
 		REGISTRY.registerPacket(PacketAddBalance.class, PacketAddBalance::new);
 		REGISTRY.registerPacket(PacketBroadcastRailActions.class, PacketBroadcastRailActions::new);
+		REGISTRY.registerPacket(PacketCheckRouteIdHasDisabledAnnouncements.class, PacketCheckRouteIdHasDisabledAnnouncements::new);
 		REGISTRY.registerPacket(PacketDeleteData.class, PacketDeleteData::new);
 		REGISTRY.registerPacket(PacketDeleteRailAction.class, PacketDeleteRailAction::new);
 		REGISTRY.registerPacket(PacketDepotClear.class, PacketDepotClear::new);
+		REGISTRY.registerPacket(PacketDepotInstantDeploy.class, PacketDepotInstantDeploy::new);
 		REGISTRY.registerPacket(PacketDepotGenerate.class, PacketDepotGenerate::new);
 		REGISTRY.registerPacket(PacketDriveTrain.class, PacketDriveTrain::new);
 		REGISTRY.registerPacket(PacketFetchArrivals.class, PacketFetchArrivals::new);
@@ -90,6 +102,7 @@ public final class Init implements Utilities {
 		REGISTRY.registerPacket(PacketOpenTicketMachineScreen.class, PacketOpenTicketMachineScreen::new);
 		REGISTRY.registerPacket(PacketPressLiftButton.class, PacketPressLiftButton::new);
 		REGISTRY.registerPacket(PacketRequestData.class, PacketRequestData::new);
+		REGISTRY.registerPacket(PacketSetRouteIdHasDisabledAnnouncements.class, PacketSetRouteIdHasDisabledAnnouncements::new);
 		REGISTRY.registerPacket(PacketTurnOnBlockEntity.class, PacketTurnOnBlockEntity::new);
 		REGISTRY.registerPacket(PacketUpdateData.class, PacketUpdateData::new);
 		REGISTRY.registerPacket(PacketUpdateEyeCandyConfig.class, PacketUpdateEyeCandyConfig::new);
@@ -107,13 +120,15 @@ public final class Init implements Utilities {
 		// Register command
 		REGISTRY.registerCommand("mtr", commandBuilderMtr -> {
 			// Generate depot(s) by name
-			commandBuilderMtr.then("generate", commandBuilderGenerate -> generateOrClearDepotsFromCommand(commandBuilderGenerate, true));
+			commandBuilderMtr.then("generate", commandBuilderGenerate -> depotOperationFromCommand(commandBuilderGenerate, DepotOperation.GENERATE));
 			// Clear depot(s) by name
-			commandBuilderMtr.then("clear", commandBuilderClear -> generateOrClearDepotsFromCommand(commandBuilderClear, false));
+			commandBuilderMtr.then("clear", commandBuilderClear -> depotOperationFromCommand(commandBuilderClear, DepotOperation.CLEAR));
+			// Instant deploy depot(s) by name
+			commandBuilderMtr.then("instantDeploy", commandBuilderInstantDeploy -> depotOperationFromCommand(commandBuilderInstantDeploy, DepotOperation.INSTANT_DEPLOY));
 			// Force copy a world backup from one folder another
-			commandBuilderMtr.then("forceCopyWorld", commandBuilderForceCopy -> {
-				commandBuilderForceCopy.permissionLevel(4);
-				commandBuilderForceCopy.then("worldDirectory", StringArgumentType.string(), innerCommandBuilder1 -> innerCommandBuilder1.then("backupDirectory", StringArgumentType.string(), innerCommandBuilder2 -> innerCommandBuilder2.executes(contextHandler -> {
+			commandBuilderMtr.then("restoreWorld", commandBuilderRestoreWorld -> {
+				commandBuilderRestoreWorld.permissionLevel(4);
+				commandBuilderRestoreWorld.then("worldDirectory", StringArgumentType.string(), innerCommandBuilder1 -> innerCommandBuilder1.then("backupDirectory", StringArgumentType.string(), innerCommandBuilder2 -> innerCommandBuilder2.executes(contextHandler -> {
 					final Path runPath = contextHandler.getServer().getRunDirectory().toPath();
 					final Path worldDirectory = runPath.resolve(contextHandler.getString("worldDirectory"));
 					final Path backupDirectory = runPath.resolve(contextHandler.getString("backupDirectory"));
@@ -123,9 +138,6 @@ public final class Init implements Utilities {
 						try {
 							if (main != null) {
 								main.stop();
-							}
-							if (webserver != null) {
-								webserver.stop();
 							}
 							contextHandler.sendSuccess(String.format("Restoring world backup from %s to %s...", backupDirectory, worldDirectory), true);
 							FileUtils.deleteDirectory(worldDirectory.toFile());
@@ -165,28 +177,25 @@ public final class Init implements Utilities {
 
 			Config.init(minecraftServer.getRunDirectory());
 			final int defaultPort = Config.getServer().getWebserverPort();
-			serverPort = findFreePort(defaultPort);
-
-			final int port = findFreePort(serverPort + 1);
-			main = new Main(minecraftServer.getSavePath(WorldSavePath.getRootMapped()).resolve("mtr"), serverPort, port, Config.getServer().getUseThreadedSimulation(), WORLD_ID_LIST.toArray(new String[0]));
-			webserver = new Webserver(port);
-			webserver.addServlet(new ServletHolder(new VehicleLiftServlet(minecraftServer)), "/vehicles-lifts");
-			webserver.start();
+			serverPort = defaultPort <= 0 ? -1 : findFreePort(defaultPort);
+			main = new Main(minecraftServer.getSavePath(WorldSavePath.getRootMapped()).resolve("mtr"), serverPort, Config.getServer().getUseThreadedSimulation(), Config.getServer().getUseThreadedFileLoading(), webserverSetup, WORLD_ID_LIST.toArray(new String[0]));
 
 			serverTick = 0;
 			lastSavedMillis = System.currentTimeMillis();
 			sendWorldTimeUpdate = () -> {
 				if (canSendWorldTimeUpdate) {
 					canSendWorldTimeUpdate = false;
-					sendHttpRequest(
-							"operation/set-time",
+					sendMessageC2S(
+							OperationProcessor.SET_TIME,
+							minecraftServer,
 							null,
-							Utilities.getJsonObjectFromData(new SetTime(
+							new SetTime(
 									(WorldHelper.getTimeOfDay(minecraftServer.getOverworld()) + 6000) * SECONDS_PER_MC_HOUR,
 									MILLIS_PER_MC_DAY,
 									GameRule.DO_DAYLIGHT_CYCLE.getBooleanGameRule(minecraftServer)
-							)).toString(),
-							response -> canSendWorldTimeUpdate = true
+							),
+							response -> canSendWorldTimeUpdate = true,
+							SerializedDataBase.class
 					);
 				} else {
 					Main.LOGGER.error("Transport Simulation Core not responding; stopping Minecraft server!");
@@ -200,9 +209,8 @@ public final class Init implements Utilities {
 			if (main != null) {
 				main.stop();
 			}
-			if (webserver != null) {
-				webserver.stop();
-			}
+			serverPort = 0;
+			RIDING_PLAYERS.clear();
 		});
 
 		REGISTRY.eventRegistry.registerStartServerTick(() -> {
@@ -212,15 +220,20 @@ public final class Init implements Utilities {
 
 			ArrivalsCacheServer.tickAll();
 			serverTick++;
-			if (!Config.getServer().getUseThreadedSimulation()) {
-				main.manualTick();
+
+			if (main != null) {
+				if (!Config.getServer().getUseThreadedSimulation()) {
+					main.manualTick();
+				}
+
+				final long currentMillis = System.currentTimeMillis();
+				if (currentMillis - lastSavedMillis > AUTOSAVE_INTERVAL) {
+					main.save();
+					lastSavedMillis = currentMillis;
+				}
 			}
 
-			final long currentMillis = System.currentTimeMillis();
-			if (currentMillis - lastSavedMillis > AUTOSAVE_INTERVAL) {
-				main.save();
-				lastSavedMillis = currentMillis;
-			}
+			RIDING_PLAYERS.values().forEach(Runnable::run);
 		});
 
 		REGISTRY.eventRegistry.registerEndWorldTick(serverWorld -> {
@@ -228,7 +241,15 @@ public final class Init implements Utilities {
 			if (railActionModule != null) {
 				railActionModule.tick();
 			}
+
+			if (main != null) {
+				final String dimension = getWorldId(new World(serverWorld.data));
+				main.processMessagesS2C(WORLD_ID_LIST.indexOf(dimension), queueObject -> MinecraftOperationProcessor.process(queueObject, serverWorld, dimension));
+			}
 		});
+
+		REGISTRY.eventRegistry.registerPlayerJoin((minecraftServer, serverPlayerEntity) -> updatePlayer(serverPlayerEntity, false));
+		REGISTRY.eventRegistry.registerPlayerDisconnect((minecraftServer, serverPlayerEntity) -> RIDING_PLAYERS.remove(serverPlayerEntity.getUuid()));
 
 		// Finish registration
 		REGISTRY.init();
@@ -241,12 +262,19 @@ public final class Init implements Utilities {
 		}
 	}
 
-	public static void sendHttpRequest(String endpoint, @Nullable String content, @Nullable Consumer<String> consumer) {
-		Simulator.REQUEST_HELPER.sendRequest(String.format("http://localhost:%s%s", serverPort, endpoint), content, consumer);
+	/**
+	 * @return the port of the webserver started by Transport Simulation Core, not the clientside webserver.
+	 * <br>{@code 0} means the integrated server is not running
+	 * <br>{@code -1} means the webserver is disabled
+	 */
+	public static int getServerPort() {
+		return serverPort;
 	}
 
-	public static void sendHttpRequest(String endpoint, @Nullable World world, String content, @Nullable Consumer<String> consumer) {
-		sendHttpRequest(String.format("/mtr/api/%s?%s", endpoint, world == null ? "dimensions=all" : "dimension=" + WORLD_ID_LIST.indexOf(getWorldId(world))), content, consumer);
+	public static <T extends SerializedDataBase> void sendMessageC2S(String key, @Nullable MinecraftServer minecraftServer, @Nullable World world, SerializedDataBase data, @Nullable Consumer<T> consumer, @Nullable Class<T> responseDataClass) {
+		if (main != null) {
+			main.sendMessageC2S(world == null ? null : WORLD_ID_LIST.indexOf(getWorldId(world)), new QueueObject(key, data, consumer == null || minecraftServer == null ? null : responseData -> minecraftServer.execute(() -> consumer.accept(responseData)), responseDataClass));
+		}
 	}
 
 	public static BlockPos positionToBlockPos(Position position) {
@@ -263,6 +291,15 @@ public final class Init implements Utilities {
 
 	public static boolean isChunkLoaded(World world, BlockPos blockPos) {
 		return world.getChunkManager().getWorldChunk(blockPos.getX() / 16, blockPos.getZ() / 16) != null && world.isRegionLoaded(blockPos, blockPos);
+	}
+
+	public static void updateRidingEntity(ServerPlayerEntity serverPlayerEntity, boolean dismount) {
+		if (dismount) {
+			RIDING_PLAYERS.remove(serverPlayerEntity.getUuid());
+			updatePlayer(serverPlayerEntity, false);
+		} else {
+			RIDING_PLAYERS.put(serverPlayerEntity.getUuid(), () -> updatePlayer(serverPlayerEntity, true));
+		}
 	}
 
 	public static String getWorldId(World world) {
@@ -312,23 +349,54 @@ public final class Init implements Utilities {
 		}, requestProperties);
 	}
 
-	private static void generateOrClearDepotsFromCommand(CommandBuilder<?> commandBuilder, boolean isGenerate) {
+	public static void createWebserverSetup(Consumer<Webserver> webserverSetup) {
+		Init.webserverSetup = webserverSetup;
+	}
+
+	public static String randomString() {
+		return Integer.toHexString(new Random().nextInt());
+	}
+
+	private static void depotOperationFromCommand(CommandBuilder<?> commandBuilder, DepotOperation depotOperation) {
 		commandBuilder.permissionLevel(2);
 		commandBuilder.executes(contextHandler -> {
-			contextHandler.sendSuccess((isGenerate ? TranslationProvider.COMMAND_MTR_GENERATE_ALL : TranslationProvider.COMMAND_MTR_CLEAR_ALL).key, true);
-			return generateOrClearDepotsFromCommand(contextHandler.getWorld(), "", isGenerate);
+			contextHandler.sendSuccess(depotOperation.translationHolderAll.key, true);
+			return depotOperationFromCommand(contextHandler.getWorld(), "", depotOperation);
 		});
 		commandBuilder.then("name", StringArgumentType.greedyString(), innerCommandBuilder -> innerCommandBuilder.executes(contextHandler -> {
 			final String filter = contextHandler.getString("name");
-			contextHandler.sendSuccess((isGenerate ? TranslationProvider.COMMAND_MTR_GENERATE_FILTER : TranslationProvider.COMMAND_MTR_CLEAR_FILTER).key, true, filter);
-			return generateOrClearDepotsFromCommand(contextHandler.getWorld(), filter, isGenerate);
+			contextHandler.sendSuccess(depotOperation.translationHolderName.key, true, filter);
+			return depotOperationFromCommand(contextHandler.getWorld(), filter, depotOperation);
 		}));
 	}
 
-	private static int generateOrClearDepotsFromCommand(World world, String filter, boolean isGenerate) {
-		final GenerateOrClearByDepotName generateByDepotName = new GenerateOrClearByDepotName();
-		generateByDepotName.setFilter(filter);
-		sendHttpRequest(isGenerate ? "operation/generate-by-depot-name" : "operation/clear-by-depot-name", world, Utilities.getJsonObjectFromData(generateByDepotName).toString(), null);
+	private static int depotOperationFromCommand(World world, String filter, DepotOperation depotOperation) {
+		final DepotOperationByName depotOperationByName = new DepotOperationByName();
+		depotOperationByName.setFilter(filter);
+		sendMessageC2S(depotOperation.operation, world.getServer(), world, depotOperationByName, null, null);
 		return 1;
+	}
+
+	private static void updatePlayer(ServerPlayerEntity serverPlayerEntity, boolean isRiding) {
+		serverPlayerEntity.setFallDistanceMapped(0);
+		serverPlayerEntity.setNoGravity(isRiding);
+		serverPlayerEntity.setNoClipMapped(isRiding);
+		((PlayerTeleportationStateAccessor) serverPlayerEntity.data).setInTeleportationState(isRiding);
+	}
+
+	private enum DepotOperation {
+		GENERATE(TranslationProvider.COMMAND_MTR_GENERATE_ALL, TranslationProvider.COMMAND_MTR_GENERATE_FILTER, OperationProcessor.GENERATE_BY_DEPOT_NAME),
+		CLEAR(TranslationProvider.COMMAND_MTR_CLEAR_ALL, TranslationProvider.COMMAND_MTR_CLEAR_FILTER, OperationProcessor.CLEAR_BY_DEPOT_NAME),
+		INSTANT_DEPLOY(TranslationProvider.COMMAND_MTR_INSTANT_DEPLOY_ALL, TranslationProvider.COMMAND_MTR_INSTANT_DEPLOY_FILTER, OperationProcessor.INSTANT_DEPLOY_BY_DEPOT_NAME);
+
+		private final TranslationProvider.TranslationHolder translationHolderAll;
+		private final TranslationProvider.TranslationHolder translationHolderName;
+		private final String operation;
+
+		DepotOperation(TranslationProvider.TranslationHolder translationHolderAll, TranslationProvider.TranslationHolder translationHolderName, String operation) {
+			this.translationHolderAll = translationHolderAll;
+			this.translationHolderName = translationHolderName;
+			this.operation = operation;
+		}
 	}
 }

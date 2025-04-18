@@ -4,8 +4,10 @@ import org.mtr.core.data.Platform;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Station;
 import org.mtr.core.operation.DataRequest;
+import org.mtr.core.servlet.WebServlet;
 import org.mtr.core.servlet.Webserver;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.mtr.libraries.javax.servlet.MultipartConfigElement;
 import org.mtr.libraries.org.eclipse.jetty.servlet.ServletHolder;
 import org.mtr.mapping.holder.*;
 import org.mtr.mapping.mapper.GraphicsHolder;
@@ -21,6 +23,7 @@ import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.mod.config.Config;
 import org.mtr.mod.data.IGui;
 import org.mtr.mod.entity.EntityRendering;
+import org.mtr.mod.generated.WebserverResources;
 import org.mtr.mod.generated.lang.TranslationProvider;
 import org.mtr.mod.item.ItemBlockClickingBase;
 import org.mtr.mod.packet.PacketRequestData;
@@ -28,16 +31,20 @@ import org.mtr.mod.render.*;
 import org.mtr.mod.resource.CachedResource;
 import org.mtr.mod.screen.BetaWarningScreen;
 import org.mtr.mod.servlet.ClientServlet;
+import org.mtr.mod.servlet.ResourcePackCreatorOperationServlet;
+import org.mtr.mod.servlet.ResourcePackCreatorUploadServlet;
 import org.mtr.mod.sound.LoopingSoundInstance;
-import org.mtr.mod.sound.VehicleSoundBase;
+import org.mtr.mod.sound.ScheduledSound;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class InitClient {
 
 	private static Webserver webserver;
+	private static int serverPort;
 	private static long lastMillis = 0;
 	private static long gameMillis = 0;
 	private static long lastPlayedTrainSoundsMillis = 0;
@@ -48,6 +55,10 @@ public final class InitClient {
 	public static final RegistryClient REGISTRY_CLIENT = new RegistryClient(Init.REGISTRY);
 	public static final int MILLIS_PER_SPEED_SOUND = 200;
 	public static final LoopingSoundInstance TACTILE_MAP_SOUND_INSTANCE = new LoopingSoundInstance("tactile_map_music");
+
+	static {
+		Init.createWebserverSetup(InitClient::setupWebserver);
+	}
 
 	public static void init() {
 		KeyBindings.init();
@@ -226,6 +237,7 @@ public final class InitClient {
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.SIGNAL_REMOVER_GREEN, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.SIGNAL_REMOVER_RED, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.SIGNAL_REMOVER_BLACK, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
+		REGISTRY_CLIENT.registerItemModelPredicate(Items.BRIDGE_CREATOR_1, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.BRIDGE_CREATOR_3, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.BRIDGE_CREATOR_5, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
 		REGISTRY_CLIENT.registerItemModelPredicate(Items.BRIDGE_CREATOR_7, new Identifier(Init.MOD_ID, "selected"), checkItemPredicateTag());
@@ -339,19 +351,34 @@ public final class InitClient {
 			DynamicTextureCache.instance = new DynamicTextureCache();
 			lastMillis = System.currentTimeMillis();
 			gameMillis = 0;
+			lastUpdatePacketMillis = 0;
 			DynamicTextureCache.instance.reload();
 
 			// Clientside webserver for locally hosting the online system map
-			final int port = Init.findFreePort(0);
-			webserver = new Webserver(port);
-			webserver.addServlet(new ServletHolder(new ClientServlet()), "/");
-			webserver.start();
+			// Only start clientside webserver if not in singleplayer
+			if (Init.getServerPort() == 0) {
+				serverPort = Init.findFreePort(0);
+				webserver = new Webserver(serverPort);
+				webserver.addServlet(new ServletHolder(new ClientServlet()), "/");
+				setupWebserver(webserver);
+				webserver.start();
+			} else {
+				serverPort = Math.max(Init.getServerPort(), 0);
+			}
+			if (serverPort > 0) {
+				Init.LOGGER.info("Open the Transport System Map at http://localhost:{}", serverPort);
+				Init.LOGGER.info("Open the Resource Pack Creator at http://localhost:{}/creator/", serverPort);
+			} else {
+				Init.LOGGER.info("Transport System Map and Resource Pack Creator disabled");
+			}
 		});
 
 		REGISTRY_CLIENT.eventRegistryClient.registerClientDisconnect(() -> {
 			if (webserver != null) {
 				webserver.stop();
+				webserver = null;
 			}
+			serverPort = 0;
 		});
 
 		REGISTRY_CLIENT.eventRegistryClient.registerStartClientTick(() -> {
@@ -383,14 +410,15 @@ public final class InitClient {
 			}
 
 			BlockTrainAnnouncer.processQueue();
+			ResourcePackCreatorOperationServlet.tick(millisElapsed);
 
 			// If player is moving, send a request every 0.5 seconds to the server to fetch any new nearby data
 			final ClientPlayerEntity clientPlayerEntity = MinecraftClient.getInstance().getPlayerMapped();
-			if (clientPlayerEntity != null && lastUpdatePacketMillis >= 0 && getGameMillis() - lastUpdatePacketMillis > 500) {
+			if (clientPlayerEntity != null && lastUpdatePacketMillis > 0 && getGameMillis() > lastUpdatePacketMillis) {
 				final DataRequest dataRequest = new DataRequest(clientPlayerEntity.getUuidAsString(), Init.blockPosToPosition(MinecraftClient.getInstance().getGameRendererMapped().getCamera().getBlockPos()), MinecraftClientHelper.getRenderDistance() * 16L);
 				dataRequest.writeExistingIds(MinecraftClientData.getInstance());
 				InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketRequestData(dataRequest));
-				lastUpdatePacketMillis = -1;
+				lastUpdatePacketMillis = 0;
 			}
 		});
 
@@ -399,19 +427,18 @@ public final class InitClient {
 				movePlayer.run();
 				movePlayer = null;
 			}
-			VehicleSoundBase.playScheduledSounds();
+			ScheduledSound.playScheduledSounds();
 		});
 
 		REGISTRY_CLIENT.eventRegistryClient.registerChunkLoad((clientWorld, worldChunk) -> {
-			if (lastUpdatePacketMillis < 0) {
-				lastUpdatePacketMillis = getGameMillis();
+			if (lastUpdatePacketMillis == 0) {
+				lastUpdatePacketMillis = getGameMillis() + 500;
 			}
 		});
 
 		REGISTRY_CLIENT.eventRegistryClient.registerResourceReloadEvent(CustomResourceLoader::reload);
 
 		Config.init(MinecraftClient.getInstance().getRunDirectoryMapped());
-		ResourcePackHelper.fix();
 
 		BlockTactileMap.BlockEntity.updateSoundSource = TACTILE_MAP_SOUND_INSTANCE::setPos;
 		BlockTactileMap.BlockEntity.onUse = blockPos -> {
@@ -481,7 +508,30 @@ public final class InitClient {
 		return gameMillis;
 	}
 
+	/**
+	 * @return the port of the clientside webserver (multiplayer) or the webserver started by Transport Simulation Core (singleplayer).
+	 * <br>{@code 0} means the webserver is not running
+	 */
+	public static int getServerPort() {
+		return serverPort;
+	}
+
 	private static RegistryClient.ModelPredicateProvider checkItemPredicateTag() {
 		return (itemStack, clientWorld, livingEntity) -> itemStack.getOrCreateTag().contains(ItemBlockClickingBase.TAG_POS) ? 1 : 0;
+	}
+
+	private static void setupWebserver(Webserver webserver) {
+		webserver.addServlet(new ServletHolder(new ResourcePackCretorWebServlet(WebserverResources::get, "/creator/")), "/creator/*");
+		webserver.addServlet(new ServletHolder(new ResourcePackCreatorOperationServlet()), "/mtr/api/creator/operation/*");
+		final ServletHolder resourcePackCreatorUploadServletHolder = new ServletHolder(new ResourcePackCreatorUploadServlet());
+		resourcePackCreatorUploadServletHolder.getRegistration().setMultipartConfig(new MultipartConfigElement((String) null));
+		webserver.addServlet(resourcePackCreatorUploadServletHolder, "/mtr/api/creator/upload/*");
+	}
+
+	private static class ResourcePackCretorWebServlet extends WebServlet {
+
+		public ResourcePackCretorWebServlet(Function<String, String> contentProvider, String expectedPath) {
+			super(contentProvider, expectedPath);
+		}
 	}
 }

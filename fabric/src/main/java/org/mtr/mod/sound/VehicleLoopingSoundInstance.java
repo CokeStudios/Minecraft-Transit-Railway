@@ -5,8 +5,6 @@ import org.mtr.mapping.mapper.MovingSoundInstanceExtension;
 
 public class VehicleLoopingSoundInstance extends MovingSoundInstanceExtension {
 
-	private int coolDown;
-
 	public VehicleLoopingSoundInstance(SoundEvent event) {
 		super(event, SoundCategory.getBlocksMapped());
 		setIsRepeatableMapped(true);
@@ -16,10 +14,8 @@ public class VehicleLoopingSoundInstance extends MovingSoundInstanceExtension {
 	}
 
 	public void setData(float volume, float pitch, BlockPos blockPos) {
-		coolDown = 20;
 		setPitch(pitch == 0 ? 1 : pitch);
 		setVolume(volume);
-
 		setX(blockPos.getX());
 		setY(blockPos.getY());
 		setZ(blockPos.getZ());
@@ -33,11 +29,6 @@ public class VehicleLoopingSoundInstance extends MovingSoundInstanceExtension {
 
 	@Override
 	public void tick2() {
-		if (coolDown == 0) {
-			setDone2();
-		} else {
-			coolDown--;
-		}
 	}
 
 	@Override
@@ -48,5 +39,9 @@ public class VehicleLoopingSoundInstance extends MovingSoundInstanceExtension {
 	@Override
 	public boolean canPlay2() {
 		return true;
+	}
+
+	public void dispose() {
+		setDone2();
 	}
 }

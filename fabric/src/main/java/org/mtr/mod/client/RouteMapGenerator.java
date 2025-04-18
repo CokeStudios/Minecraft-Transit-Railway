@@ -19,7 +19,6 @@ import org.mtr.mod.data.IGui;
 import org.mtr.mod.generated.lang.TranslationProvider;
 
 import java.util.Locale;
-import java.util.Random;
 import java.util.function.BiConsumer;
 
 public class RouteMapGenerator implements IGui {
@@ -36,8 +35,8 @@ public class RouteMapGenerator implements IGui {
 	private static final String EXIT_RESOURCE = "textures/block/sign/exit_letter_blank.png";
 	private static final String ARROW_RESOURCE = "textures/block/sign/arrow.png";
 	private static final String CIRCLE_RESOURCE = "textures/block/sign/circle.png";
-	private static final String TEMP_CIRCULAR_MARKER_CLOCKWISE = String.format("temp_circular_marker_%s_clockwise", Integer.toHexString(new Random().nextInt()));
-	private static final String TEMP_CIRCULAR_MARKER_ANTICLOCKWISE = String.format("temp_circular_marker_%s_anticlockwise", Integer.toHexString(new Random().nextInt()));
+	private static final String TEMP_CIRCULAR_MARKER_CLOCKWISE = String.format("temp_circular_marker_%s_clockwise", Init.randomString());
+	private static final String TEMP_CIRCULAR_MARKER_ANTICLOCKWISE = String.format("temp_circular_marker_%s_anticlockwise", Init.randomString());
 	private static final int PIXEL_RESOLUTION = 24;
 
 	public static void setConstants() {
@@ -48,12 +47,12 @@ public class RouteMapGenerator implements IGui {
 		fontSizeSmall = fontSizeBig / 2;
 	}
 
-	public static NativeImage generatePixelatedText(String text, int textColor, int maxWidth, float cjkSizeRatio, boolean fullPixel) {
+	public static NativeImage generatePixelatedText(String text, int textColor, int maxWidth, double cjkSizeRatio, boolean fullPixel) {
 		try {
 			final int scale = fullPixel ? 1 : PIXEL_SCALE;
 			final int newMaxWidth = maxWidth / scale;
 			final int[] dimensions = new int[2];
-			final byte[] pixels = DynamicTextureCache.instance.getTextPixels(text, dimensions, newMaxWidth, Integer.MAX_VALUE, Math.round(PIXEL_RESOLUTION * (cjkSizeRatio > 0 ? cjkSizeRatio + 1 : 1)), Math.round(PIXEL_RESOLUTION * (cjkSizeRatio < 0 ? 1 - cjkSizeRatio : 1)), 0, HorizontalAlignment.CENTER);
+			final byte[] pixels = DynamicTextureCache.instance.getTextPixels(text, dimensions, newMaxWidth, Integer.MAX_VALUE, (int) Math.round(PIXEL_RESOLUTION * (cjkSizeRatio > 0 ? cjkSizeRatio + 1 : 1)), (int) Math.round(PIXEL_RESOLUTION * (cjkSizeRatio < 0 ? 1 - cjkSizeRatio : 1)), 0, HorizontalAlignment.CENTER);
 			final int width = Math.min(newMaxWidth, dimensions[0]) * scale;
 			final int height = dimensions[1] * scale;
 
@@ -73,13 +72,16 @@ public class RouteMapGenerator implements IGui {
 			final IntArrayList colors = getRouteStream(platformId, (simplifiedRoute, currentStationIndex) -> {
 			});
 			if (colors.isEmpty()) {
-				return null;
+				final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), 1, 1, false);
+				nativeImage.setPixelColor(0, 0, 0);
+				return nativeImage;
+			} else {
+				final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), 1, colors.size(), false);
+				for (int i = 0; i < colors.size(); i++) {
+					drawPixelSafe(nativeImage, 0, i, ARGB_BLACK | colors.getInt(i));
+				}
+				return nativeImage;
 			}
-			final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), 1, colors.size(), false);
-			for (int i = 0; i < colors.size(); i++) {
-				drawPixelSafe(nativeImage, 0, i, ARGB_BLACK | colors.getInt(i));
-			}
-			return nativeImage;
 		} catch (Exception e) {
 			Init.LOGGER.error("", e);
 		}
@@ -533,6 +535,9 @@ public class RouteMapGenerator implements IGui {
 				}
 
 				return nativeImage;
+			} else {
+				final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), 1, 1, false);
+				nativeImage.setPixelColor(0, 0, transparentWhite ? 0 : ARGB_WHITE);
 			}
 		} catch (Exception e) {
 			Init.LOGGER.error("", e);
@@ -622,7 +627,7 @@ public class RouteMapGenerator implements IGui {
 	private static IntArrayList getRouteStream(long platformId, BiConsumer<SimplifiedRoute, Integer> nonTerminatingCallback) {
 		final IntArrayList colors = new IntArrayList();
 		final IntArrayList terminatingColors = new IntArrayList();
-		MinecraftClientData.getInstance().simplifiedRoutes.stream().filter(simplifiedRoute -> simplifiedRoute.getPlatformIndex(platformId) >= 0).sorted().forEach(simplifiedRoute -> {
+		MinecraftClientData.getInstance().simplifiedRoutes.stream().filter(simplifiedRoute -> simplifiedRoute.getPlatformIndex(platformId) >= 0 && !simplifiedRoute.getName().isEmpty()).sorted().forEach(simplifiedRoute -> {
 			final int currentStationIndex = simplifiedRoute.getPlatformIndex(platformId);
 			if (currentStationIndex < simplifiedRoute.getPlatforms().size() - 1) {
 				nonTerminatingCallback.accept(simplifiedRoute, currentStationIndex);

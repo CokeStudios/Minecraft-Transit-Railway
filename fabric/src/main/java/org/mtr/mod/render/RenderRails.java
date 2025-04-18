@@ -5,6 +5,8 @@ import com.logisticscraft.occlusionculling.util.Vec3d;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Angle;
+import org.mtr.core.tool.Utilities;
+import org.mtr.libraries.it.unimi.dsi.fastutil.doubles.DoubleDoubleImmutablePair;
 import org.mtr.libraries.it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -13,6 +15,7 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair
 import org.mtr.mapping.holder.*;
 import org.mtr.mapping.mapper.*;
 import org.mtr.mod.Init;
+import org.mtr.mod.InitClient;
 import org.mtr.mod.Items;
 import org.mtr.mod.block.BlockNode;
 import org.mtr.mod.block.BlockSignalLightBase;
@@ -24,6 +27,7 @@ import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.mod.config.Config;
 import org.mtr.mod.data.IGui;
 import org.mtr.mod.data.RailType;
+import org.mtr.mod.generated.lang.TranslationProvider;
 import org.mtr.mod.item.ItemBlockClickingBase;
 import org.mtr.mod.item.ItemBrush;
 import org.mtr.mod.item.ItemNodeModifierBase;
@@ -32,6 +36,7 @@ import org.mtr.mod.model.ModelSmallCube;
 import org.mtr.mod.packet.PacketUpdateLastRailStyles;
 import org.mtr.mod.resource.RailResource;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
@@ -45,6 +50,7 @@ public class RenderRails implements IGui {
 	private static final Identifier WOOL_TEXTURE = new Identifier("textures/block/white_wool.png");
 	private static final Identifier ONE_WAY_RAIL_ARROW_TEXTURE = new Identifier(Init.MOD_ID, "textures/block/one_way_rail_arrow.png");
 	private static final int INVALID_NODE_CHECK_RADIUS = 16;
+	private static final double LIGHT_REFERENCE_OFFSET = 0.1;
 	private static final ModelSmallCube MODEL_SMALL_CUBE = new ModelSmallCube(new Identifier(Init.MOD_ID, "textures/block/white.png"));
 
 	public static void render() {
@@ -76,17 +82,23 @@ public class RenderRails implements IGui {
 		// Ghost rails (when holding brush)
 		final ObjectArraySet<Rail> hoverRails = new ObjectArraySet<>();
 		if (clientPlayerEntity.isHolding(Items.BRUSH.get())) {
-			final Rail rail = MinecraftClientData.getInstance().getFacingRail(false);
-			if (rail != null) {
+			final ObjectObjectImmutablePair<Rail, BlockPos> railAndBlockPos = MinecraftClientData.getInstance().getFacingRailAndBlockPos(false);
+			if (railAndBlockPos != null) {
+				final Rail rail = railAndBlockPos.left();
+				final BlockPos blockPos = railAndBlockPos.right();
 				if (clientPlayerEntity.isSneaking()) {
 					if (PacketUpdateLastRailStyles.CLIENT_CACHE.canApplyStylesToRail(clientPlayerEntity.getUuid(), rail, false)) {
 						final Rail newRail = PacketUpdateLastRailStyles.CLIENT_CACHE.getRailWithLastStyles(clientPlayerEntity.getUuid(), rail);
 						hoverRails.add(newRail);
 						railsToRender.remove(rail);
 						railsToRender.add(newRail);
+						final DoubleDoubleImmutablePair railRadii = newRail.railMath.getHorizontalRadii();
+						renderRailStats(blockPos, null, newRail.railMath.getLength(), railRadii.leftDouble(), railRadii.rightDouble());
 					}
 				} else {
 					hoverRails.add(rail);
+					final DoubleDoubleImmutablePair railRadii = rail.railMath.getHorizontalRadii();
+					renderRailStats(blockPos, null, rail.railMath.getLength(), railRadii.leftDouble(), railRadii.rightDouble());
 				}
 			}
 		}
@@ -112,11 +124,16 @@ public class RenderRails implements IGui {
 								Init.blockPosToPosition(posStart), blockStateStart.getBlock().data instanceof BlockNode ? BlockNode.getAngle(blockStateStart) : blockStateEnd.getBlock().data instanceof BlockNode.BlockContinuousMovementNode ? angleEnd : EntityHelper.getYaw(new Entity(clientPlayerEntity.data)) + 90,
 								Init.blockPosToPosition(posEnd), angleEnd
 						);
+
 						final Rail rail = ((ItemRailModifier) item.data).createRail(clientPlayerEntity.getUuid(), ItemNodeModifierBase.getTransportMode(compoundTag), blockStateStart, blockStateEnd, posStart, posEnd, angles.left(), angles.right());
 						if (rail != null) {
 							final Rail newRail = PacketUpdateLastRailStyles.CLIENT_CACHE.getRailWithLastStyles(clientPlayerEntity.getUuid(), rail);
 							railsToRender.add(newRail);
 							hoverRails.add(newRail);
+							final double railLength = newRail.railMath.getLength();
+							final DoubleDoubleImmutablePair railRadii = newRail.railMath.getHorizontalRadii();
+							renderRailStats(posStart, posEnd, railLength, railRadii.leftDouble(), railRadii.rightDouble());
+							renderRailStats(posEnd, posStart, railLength, railRadii.rightDouble(), railRadii.leftDouble());
 						}
 					}
 				}
@@ -257,11 +274,12 @@ public class RenderRails implements IGui {
 
 		// Render default rail or coloured rail
 		if (renderType[0] || renderState.hasColor) {
-			final int color = renderState.hasColor ? RailType.getRailColor(rail) : ARGB_WHITE;
+			final int color = renderState.hasColor ? renderState == RenderState.FLASHING ? MainRenderer.getFlashingColor(RailType.getRailColor(rail), 1) : RailType.getRailColor(rail) : ARGB_WHITE;
+
 			final Identifier texture = renderType[1] && !renderType[0] ? IRON_BLOCK_TEXTURE : defaultTexture;
 			renderWithinRenderDistance(rail, (blockPos, x1, z1, x2, z2, x3, z3, x4, z4, y1, y2) -> {
 				final float textureOffset = (((int) (x1 + z1)) % 4) * 0.25F;
-				final int light = renderState == RenderState.FLASHING ? MainRenderer.getFlashingLight() : renderState == RenderState.COLORED ? GraphicsHolder.getDefaultLight() : LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPos), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPos));
+				final int light = renderState == RenderState.FLASHING || renderState == RenderState.COLORED ? GraphicsHolder.getDefaultLight() : LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPos), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPos));
 				MainRenderer.scheduleRender(texture, false, QueuedRenderLayer.EXTERIOR, (graphicsHolder, offset) -> {
 					IDrawing.drawTexture(graphicsHolder, x1, y1 + yOffset, z1, x2, y1 + yOffset + SMALL_OFFSET, z2, x3, y2 + yOffset, z3, x4, y2 + yOffset + SMALL_OFFSET, z4, offset, u1 < 0 ? 0 : u1, v1 < 0 ? 0.1875F + textureOffset : v1, u2 < 0 ? 1 : u2, v2 < 0 ? 0.3125F + textureOffset : v2, Direction.UP, color, light);
 					IDrawing.drawTexture(graphicsHolder, x2, y1 + yOffset + SMALL_OFFSET, z2, x1, y1 + yOffset, z1, x4, y2 + yOffset + SMALL_OFFSET, z4, x3, y2 + yOffset, z3, offset, u1 < 0 ? 0 : u1, v1 < 0 ? 0.1875F + textureOffset : v1, u2 < 0 ? 1 : u2, v2 < 0 ? 0.3125F + textureOffset : v2, Direction.UP, color, light);
@@ -274,17 +292,20 @@ public class RenderRails implements IGui {
 		final IntArrayList colors = new IntArrayList(rail.getSignalColors());
 		Collections.sort(colors);
 		final float width = 1F / 16;
-		final LongArrayList blockedSignalColors = MinecraftClientData.getInstance().railIdToBlockedSignalColors.getOrDefault(rail.getHexId(), new LongArrayList());
+		final LongArrayList preBlockedSignalColors = MinecraftClientData.getInstance().railIdToPreBlockedSignalColors.getOrDefault(rail.getHexId(), new LongArrayList());
+		final LongArrayList currentlyBlockedSignalColors = MinecraftClientData.getInstance().railIdToCurrentlyBlockedSignalColors.getOrDefault(rail.getHexId(), new LongArrayList());
 
 		for (int i = 0; i < colors.size(); i++) {
 			final int rawColor = colors.getInt(i);
-			final int color = ARGB_BLACK | rawColor;
-			final boolean shouldFlash = blockedSignalColors.contains(rawColor);
+			final boolean preBlocked = preBlockedSignalColors.contains(rawColor);
+			final boolean currentlyBlocked = currentlyBlockedSignalColors.contains(rawColor);
+			final boolean shouldFlash = preBlocked || currentlyBlocked;
+			final int color = shouldFlash ? MainRenderer.getFlashingColor(rawColor, currentlyBlocked ? 1 : 4) : ARGB_BLACK | rawColor;
 			final float u1 = width * i + 1 - width * colors.size() / 2;
 			final float u2 = u1 + width;
 
 			renderWithinRenderDistance(rail, (blockPos, x1, z1, x2, z2, x3, z3, x4, z4, y1, y2) -> {
-				final int light = shouldFlash ? MainRenderer.getFlashingLight() : LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPos), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPos));
+				final int light = shouldFlash ? GraphicsHolder.getDefaultLight() : LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPos), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPos));
 				MainRenderer.scheduleRender(WOOL_TEXTURE, false, shouldFlash ? QueuedRenderLayer.EXTERIOR : QueuedRenderLayer.LIGHT, (graphicsHolder, offset) -> {
 					IDrawing.drawTexture(graphicsHolder, x1, y1 + 0.125, z1, x2, y1 + 0.125 + SMALL_OFFSET, z2, x3, y2 + 0.125, z3, x4, y2 + 0.125 + SMALL_OFFSET, z4, offset, u1, 0, u2, 1, Direction.UP, color, light);
 					IDrawing.drawTexture(graphicsHolder, x4, y2 + 0.125 + SMALL_OFFSET, z4, x3, y2 + 0.125, z3, x2, y1 + 0.125 + SMALL_OFFSET, z2, x1, y1 + 0.125, z1, offset, u1, 0, u2, 1, Direction.UP, color, light);
@@ -300,7 +321,7 @@ public class RenderRails implements IGui {
 		final int renderDistance = MinecraftClientHelper.getRenderDistance() * 16;
 
 		rail.railMath.render((x1, z1, x2, z2, x3, z3, x4, z4, y1, y2) -> {
-			final BlockPos blockPos = Init.newBlockPos(x1, y1, z1);
+			final BlockPos blockPos = Init.newBlockPos(x1, y1 + LIGHT_REFERENCE_OFFSET, z1);
 			final int distance = blockPos.getManhattanDistance(cameraBlockPos);
 			if (distance <= renderDistance) {
 				if (distance < 32) {
@@ -325,6 +346,63 @@ public class RenderRails implements IGui {
 			});
 			MODEL_SMALL_CUBE.render(storedMatrixTransformations, light);
 		}
+	}
+
+	private static void renderRailStats(BlockPos renderPos, @Nullable BlockPos otherPos, double railLength, double closerRadius, double otherRadius) {
+		if (railLength > 0) {
+			final String textXYZOffsetLabel = otherPos == null ? null : TranslationProvider.GUI_MTR_RAIL_XYZ_OFFSET.getString();
+			final String textXYZOffset = otherPos == null ? null : String.format("(%s, %s, %s)", renderPos.getX() - otherPos.getX(), renderPos.getY() - otherPos.getY(), renderPos.getZ() - otherPos.getZ());
+
+			final String textXZRadiusLabel;
+			final String textXZRadius;
+			final double roundedCloserRadius = Utilities.round(closerRadius, 3);
+			final double roundedOtherRadius = Utilities.round(otherRadius, 3);
+			if (roundedCloserRadius == 0 || roundedOtherRadius == 0 || roundedCloserRadius == roundedOtherRadius) {
+				if (roundedCloserRadius == 0 && roundedOtherRadius == 0) {
+					textXZRadiusLabel = null;
+					textXZRadius = null;
+				} else {
+					textXZRadiusLabel = TranslationProvider.GUI_MTR_RAIL_XZ_RADIUS.getString();
+					textXZRadius = String.valueOf(roundedCloserRadius == 0 ? roundedOtherRadius : roundedCloserRadius);
+				}
+			} else {
+				textXZRadiusLabel = TranslationProvider.GUI_MTR_RAIL_XZ_RADII.getString();
+				textXZRadius = String.format("%s, %s", roundedCloserRadius, roundedOtherRadius);
+			}
+
+			final String textLengthLabel = TranslationProvider.GUI_MTR_RAIL_XZ_LENGTH.getString();
+			final String textLength = String.valueOf(Utilities.round(railLength, 3));
+
+			final double textOffset = otherPos == null ? 0.5 : 1;
+
+			MainRenderer.scheduleRender(QueuedRenderLayer.TEXT, (graphicsHolder, offset) -> {
+				graphicsHolder.push();
+				graphicsHolder.translate(renderPos.getX() - offset.getXMapped() + 0.5, renderPos.getY() - offset.getYMapped() + textOffset, renderPos.getZ() - offset.getZMapped() + 0.5);
+				InitClient.transformToFacePlayer(graphicsHolder, renderPos.getX() + 0.5, renderPos.getY() + textOffset, renderPos.getZ() + 0.5);
+				graphicsHolder.rotateZDegrees(180);
+				graphicsHolder.scale(1 / 32F, 1 / 32F, -1 / 32F);
+				int line = 0;
+				if (otherPos != null) {
+					line = renderRailStat(graphicsHolder, textXYZOffsetLabel, textXYZOffset, line);
+				}
+				if (textXZRadius != null) {
+					line = renderRailStat(graphicsHolder, textXZRadiusLabel, textXZRadius, line);
+				}
+				renderRailStat(graphicsHolder, textLengthLabel, textLength, line);
+				graphicsHolder.pop();
+			});
+		}
+	}
+
+	private static int renderRailStat(GraphicsHolder graphicsHolder, String title, String data, int line) {
+		int newLine = line - 9;
+		graphicsHolder.drawText(data, -GraphicsHolder.getTextWidth(data) / 2, newLine, ARGB_WHITE, true, GraphicsHolder.getDefaultLight());
+		graphicsHolder.push();
+		graphicsHolder.scale(0.5F, 0.5F, 0.5F);
+		newLine -= 5;
+		graphicsHolder.drawText(title, -GraphicsHolder.getTextWidth(title) / 2, newLine * 2, ARGB_WHITE, true, GraphicsHolder.getDefaultLight());
+		graphicsHolder.pop();
+		return newLine - 1;
 	}
 
 	private static ItemStack getStackInHand() {
