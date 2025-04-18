@@ -6,7 +6,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft: [ 1.19.2, 1.20.4 ]
+        minecraft: [ 1.20.4 ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,9 +33,6 @@ jobs:
       - name: Setup Fabric files
         if: ${{ matrix.minecraft != '1.20.4' }}
         run: ./gradlew fabric:setupFiles -PminecraftVersion="${{ matrix.minecraft }}" -PcrowdinApiKey="${{ secrets.CROWDIN_API_KEY }}" -PpatreonApiKey="${{ secrets.PATREON_API_KEY }}"
-      - name: Setup Fabric files
-        if: ${{ matrix.minecraft == '1.20.4' }}
-        run: ./gradlew fabric:setupFiles -PminecraftVersion="${{ matrix.minecraft }}" -PcrowdinApiKey="${{ secrets.CROWDIN_API_KEY }}" -PpatreonApiKey="${{ secrets.PATREON_API_KEY }}" -PgeminiApiKey="${{ secrets.GEMINI_API_KEY }}"
       - name: Setup Forge files
         run: ./gradlew forge:setupFiles -PminecraftVersion="${{ matrix.minecraft }}"
       - name: Build ${{ matrix.minecraft }}
