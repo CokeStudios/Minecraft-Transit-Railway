@@ -113,6 +113,12 @@ public class VehicleRidingMovement {
 	 * Iterate through all open floors and doorways and see if the player is intersecting any of them. If so, start riding the vehicle.
 	 */
 	public static void startRiding(ObjectArrayList<Box> openFloorsAndDoorways, long depotId, long sidingId, long vehicleId, int carNumber, double x, double y, double z, double yaw) {
+		final MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		final ClientPlayerEntity clientPlayerEntity = minecraftClient.getPlayerMapped();
+		if (clientPlayerEntity != null && clientPlayerEntity.isSneaking()) {
+			return;
+		}
+
 		if (ridingVehicleId == 0 || isRiding(vehicleId)) {
 			for (final Box floorOrDoorway : openFloorsAndDoorways) {
 				if (RenderVehicleHelper.boxContains(floorOrDoorway, x, y, z)) {
