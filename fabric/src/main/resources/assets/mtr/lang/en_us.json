@@ -525,6 +525,7 @@
 	"key.mtr.train_accelerate": "Accelerate Vehicle",
 	"key.mtr.train_brake": "Brake Vehicle",
 	"key.mtr.train_toggle_doors": "Toggle Doors",
+	"key.mtr.ride_running_vehicles": "Ride Running Vehicles",
 	"lift.mtr.default_transparent": "Default Lift (Transparent)",
 	"object.mtr.teapot": "Utah Teapot",
 	"options.mtr.anonymous": "Anonymous",
