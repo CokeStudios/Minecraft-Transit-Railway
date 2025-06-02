@@ -183,6 +183,7 @@ public class RenderVehicles implements IGui {
 										final ItemDriverKey driverKey = VehicleRidingMovement.getValidHoldingKey(vehicle.vehicleExtraData.getDepotId());
 										if (driverKey != null && (driverKey.canBoardAnyVehicle || vehicle.vehicleExtraData.getIsManualAllowed())) {
 											openFloorsAndDoorways.add(floor);
+											allFloorsAndDoorways.add(floor);
 										}
 									}
 									RenderVehicleHelper.renderFloorOrDoorway(floor, ARGB_WHITE, playerPosition, vehicleCarRenderingPositionAndRotation, offsetVector == null);
