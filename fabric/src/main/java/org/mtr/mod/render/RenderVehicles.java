@@ -173,8 +173,7 @@ public class RenderVehicles implements IGui {
 						final double oscillationAmount = vehicle.persistentVehicleData.getOscillation(carNumber).getAmount() * Config.getClient().getVehicleOscillationMultiplier();
 
 						if (canRide) {
-							final ObjectArrayList<Box> openFloorsAndDoorways = new ObjectArrayList<>();
-
+							final ObjectArrayList<Box> manualFloorsAndDoorways = new ObjectArrayList<>();
 							if (vehicleResourceCache != null) {
 								vehicleResourceCache.floors.forEach(floor -> {
 									floorsAndDoorways.add(new ObjectBooleanImmutablePair<>(floor, true));
@@ -182,8 +181,7 @@ public class RenderVehicles implements IGui {
 									if (!VehicleRidingMovement.isRiding(vehicle.getId())) {
 										final ItemDriverKey driverKey = VehicleRidingMovement.getValidHoldingKey(vehicle.vehicleExtraData.getDepotId());
 										if (driverKey != null && (driverKey.canBoardAnyVehicle || vehicle.vehicleExtraData.getIsManualAllowed())) {
-											openFloorsAndDoorways.add(floor);
-											allFloorsAndDoorways.add(floor);
+											manualFloorsAndDoorways.add(floor);
 										}
 									}
 									RenderVehicleHelper.renderFloorOrDoorway(floor, ARGB_WHITE, playerPosition, vehicleCarRenderingPositionAndRotation, offsetVector == null);
@@ -196,12 +194,11 @@ public class RenderVehicles implements IGui {
 							openDoorways.forEach(openDoorway -> {
 								final Box doorway = openDoorway.left();
 								floorsAndDoorways.add(new ObjectBooleanImmutablePair<>(doorway, false));
-								openFloorsAndDoorways.add(doorway);
 								allFloorsAndDoorways.add(doorway);
 								RenderVehicleHelper.renderFloorOrDoorway(doorway, 0xFFFF0000, playerPosition, vehicleCarRenderingPositionAndRotation, offsetVector == null);
 							});
 
-							if ((!openDoorways.isEmpty()) || KeyBindings.RIDE_RUNNING_VEHICLES.isPressed()) {
+							if ((!manualFloorsAndDoorways.isEmpty()) || (!openDoorways.isEmpty()) || KeyBindings.RIDE_RUNNING_VEHICLES.isPressed()) {
 								// Check and mount player
 								VehicleRidingMovement.startRiding(allFloorsAndDoorways, vehicle.vehicleExtraData.getDepotId(), vehicle.vehicleExtraData.getSidingId(), vehicle.getId(), carNumber, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), absoluteVehicleCarPositionAndRotation.yaw);
 							}
