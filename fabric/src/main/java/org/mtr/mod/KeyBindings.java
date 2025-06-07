@@ -12,7 +12,7 @@ public final class KeyBindings {
 		TRAIN_BRAKE = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_TRAIN_BRAKE.key, GLFW.GLFW_KEY_DOWN, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
 		TRAIN_TOGGLE_DOORS = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_TRAIN_TOGGLE_DOORS.key, GLFW.GLFW_KEY_LEFT, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
 		RIDE_RUNNING_VEHICLES = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_RIDE_RUNNING_VEHICLES.key, GLFW.GLFW_KEY_RIGHT, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
-		EMERGENCY_BRAKE = InitClient.REGISTRY_CLIENT.registerKeyBinding("Emergency Brake", GLFW.GLFW_KEY_GRAVE_ACCENT, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
+		// EMERGENCY_BRAKE = InitClient.REGISTRY_CLIENT.registerKeyBinding("Emergency Brake", GLFW.GLFW_KEY_GRAVE_ACCENT, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
 		DEBUG_1_NEGATIVE = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_DEBUG_1_NEGATIVE.key, GLFW.GLFW_KEY_KP_4, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
 		DEBUG_2_NEGATIVE = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_DEBUG_2_NEGATIVE.key, GLFW.GLFW_KEY_KP_5, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
 		DEBUG_3_NEGATIVE = InitClient.REGISTRY_CLIENT.registerKeyBinding(TranslationProvider.KEY_MTR_DEBUG_3_NEGATIVE.key, GLFW.GLFW_KEY_KP_6, TranslationProvider.CATEGORY_MTR_KEYBINDING.key);
@@ -28,6 +28,7 @@ public final class KeyBindings {
 	public static final KeyBinding TRAIN_BRAKE;
 	public static final KeyBinding TRAIN_TOGGLE_DOORS;
 	public static final KeyBinding RIDE_RUNNING_VEHICLES;
+	// public static final KeyBinding EMERGENCY_BRAKE;
 	public static final KeyBinding DEBUG_1_NEGATIVE;
 	public static final KeyBinding DEBUG_2_NEGATIVE;
 	public static final KeyBinding DEBUG_3_NEGATIVE;
