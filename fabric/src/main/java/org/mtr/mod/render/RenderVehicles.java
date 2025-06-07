@@ -180,7 +180,7 @@ public class RenderVehicles implements IGui {
 									allFloorsAndDoorways.add(floor);
 									if (!VehicleRidingMovement.isRiding(vehicle.getId())) {
 										final ItemDriverKey driverKey = VehicleRidingMovement.getValidHoldingKey(vehicle.vehicleExtraData.getDepotId());
-										if (driverKey != null && (driverKey.canBoardAnyVehicle || vehicle.vehicleExtraData.getIsManualAllowed())) {
+										if (driverKey != null && vehicle.vehicleExtraData.getIsManualAllowed()) {
 											manualFloorsAndDoorways.add(floor);
 										}
 									}
