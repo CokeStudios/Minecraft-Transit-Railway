@@ -165,6 +165,7 @@ public class RenderVehicles implements IGui {
 									}
 								});
 								final boolean canOpenDoors = RenderVehicleHelper.canOpenDoors(doorway, absoluteVehicleCarPositionAndRotation, Math.max(doorBlockedAmount[0], vehicle.persistentVehicleData.getDoorValue() * 2));
+								Init.LOGGER.warn("DoorValue: {}", vehicle.persistentVehicleData.getDoorValue());
 								if ((doorBlockedAmount[0] > 0 || vehicle.persistentVehicleData.checkCanOpenDoors()) && canOpenDoors) {
 									openDoorways.add(new ObjectDoubleImmutablePair<>(doorway, doorBlockedAmount[0]));
 								}
