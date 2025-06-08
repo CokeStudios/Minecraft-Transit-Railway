@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 public class RenderVehicles implements IGui {
 
 	public static final ObjectArrayList<RidingPlayerInterpolation> RIDING_PLAYER_INTERPOLATIONS = new ObjectArrayList<>();
-	private static final ObjectArrayList<ObjectDoubleImmutablePair<Box>> lastOpenDoorways = new ObjectArrayList<>();
+	private static ObjectArrayList<ObjectDoubleImmutablePair<Box>> lastOpenDoorways = new ObjectArrayList<>();
 
 	public static void render(long millisElapsed, Vector3d cameraShakeOffset) {
 		final MinecraftClient minecraftClient = MinecraftClient.getInstance();
