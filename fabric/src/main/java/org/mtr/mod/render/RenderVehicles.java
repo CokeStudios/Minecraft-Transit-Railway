@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 public class RenderVehicles implements IGui {
 
 	public static final ObjectArrayList<RidingPlayerInterpolation> RIDING_PLAYER_INTERPOLATIONS = new ObjectArrayList<>();
-	private static ObjectArrayList<ObjectDoubleImmutablePair<Box>> lastOpenDoorways = new ObjectArrayList<>();
 
 	public static void render(long millisElapsed, Vector3d cameraShakeOffset) {
 		final MinecraftClient minecraftClient = MinecraftClient.getInstance();
@@ -166,12 +165,11 @@ public class RenderVehicles implements IGui {
 									}
 								});
 								final boolean canOpenDoors = RenderVehicleHelper.canOpenDoors(doorway, absoluteVehicleCarPositionAndRotation, Math.max(doorBlockedAmount[0], vehicle.persistentVehicleData.getDoorValue() * 2));
-								if ((doorBlockedAmount[0] > 0 && !lastOpenDoorways.isEmpty()) || (vehicle.persistentVehicleData.checkCanOpenDoors() && canOpenDoors)) {
+								if ((doorBlockedAmount[0] > 0 || vehicle.persistentVehicleData.checkCanOpenDoors()) && canOpenDoors) {
 									openDoorways.add(new ObjectDoubleImmutablePair<>(doorway, doorBlockedAmount[0]));
 								}
 							});
 						}
-						lastOpenDoorways = openDoorways;
 						final double oscillationAmount = vehicle.persistentVehicleData.getOscillation(carNumber).getAmount() * Config.getClient().getVehicleOscillationMultiplier();
 
 						if (canRide) {
