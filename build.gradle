@@ -21,6 +21,8 @@ subprojects {
 		shadowImplementation "org.mtr:Minecraft-Mappings-common:0.0.1"
 		shadowImplementation "org.mtr:Transport-Simulation-Core:0.0.1"
 		shadowImplementation "com.logisticscraft:occlusionculling:+"
+		shadowImplementation "com.google.code.gson:gson:+"
+		shadowImplementation "it.unimi.dsi:fastutil:+"
 		compileOnly "com.google.code.findbugs:jsr305:+"
 	}
 
