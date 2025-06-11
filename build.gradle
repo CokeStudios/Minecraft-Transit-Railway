@@ -43,8 +43,6 @@ subprojects {
 		}
 		relocate "com.logisticscraft", "org.mtr.libraries.com.logisticscraft"
 		relocate "de.javagl", "org.mtr.libraries.de.javagl"
-		relocate "org.mtr.libraries.com.google.gson", "com.google.gson"
-		relocate "org.mtr.libraries.it.unimi.dsi.fastutil", "it.unimi.dsi.fastutil"
 	}
 
 	tasks.withType(AbstractArchiveTask).configureEach {
