@@ -23,7 +23,7 @@ jobs:
         with:
           find: "org.mtr.libraries.it.unimi.dsi.fastutil"
           replace: "it.unimi.dsi.fastutil"
-          exclude: "fabric/src/main/java/org/mtr/mod/resource/**"
+          exclude: .
           regex: false
       # - name: Push changes
       #   uses: stefanzweifel/git-auto-commit-action@v4
