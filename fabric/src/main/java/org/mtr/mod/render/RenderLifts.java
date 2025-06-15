@@ -122,6 +122,7 @@ public class RenderLifts implements IGui {
 
 				// A temporary list to store all floors and doorways
 				final ObjectArrayList<ObjectBooleanImmutablePair<Box>> floorsAndDoorways = new ObjectArrayList<>();
+				final ObjectArrayList<Box> allFloorsAndDoorways = new ObjectArrayList<>();
 				// Find open doorways (close to platform blocks, unlocked platform screen doors, or unlocked automatic platform gates)
 				final ObjectArrayList<Box> openDoorways = new ObjectArrayList<>();
 
@@ -144,19 +145,21 @@ public class RenderLifts implements IGui {
 				}
 
 				if (canRide) {
+					// Player position relative to the car
+					final Vector3d playerPosition = absolutePositionAndRotation.transformBackwards(clientPlayerEntity.getPos(), Vector3d::rotateX, Vector3d::rotateY, Vector3d::add);
 					final Box floor = new Box(-lift.getWidth() / 2 + LIFT_FLOOR_PADDING, 0, -lift.getDepth() / 2 + LIFT_FLOOR_PADDING, lift.getWidth() / 2 - LIFT_FLOOR_PADDING, 0, lift.getDepth() / 2 - LIFT_FLOOR_PADDING);
 					floorsAndDoorways.add(new ObjectBooleanImmutablePair<>(floor, true));
+					allFloorsAndDoorways.add(floor);
 					RenderVehicleHelper.renderFloorOrDoorway(floor, ARGB_WHITE, playerPosition, renderingPositionAndRotation, offsetVector == null);
 
 					openDoorways.forEach(doorway -> {
 						floorsAndDoorways.add(new ObjectBooleanImmutablePair<>(doorway, false));
+						allFloorsAndDoorways.add(doorway);
 						RenderVehicleHelper.renderFloorOrDoorway(doorway, 0xFFFF0000, playerPosition, renderingPositionAndRotation, offsetVector == null);
 					});
 
-					// Player position relative to the car
-					final Vector3d playerPosition = absolutePositionAndRotation.transformBackwards(clientPlayerEntity.getPos(), Vector3d::rotateX, Vector3d::rotateY, Vector3d::add);
 					// Check and mount player
-					VehicleRidingMovement.startRiding(floorsAndDoorways, 0, 0, lift.getId(), 0, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), absolutePositionAndRotation.yaw);
+					VehicleRidingMovement.startRiding(allFloorsAndDoorways, 0, 0, lift.getId(), 0, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), absolutePositionAndRotation.yaw);
 				}
 
 				// Render the lift
