@@ -158,8 +158,10 @@ public class RenderLifts implements IGui {
 						RenderVehicleHelper.renderFloorOrDoorway(doorway, 0xFFFF0000, playerPosition, renderingPositionAndRotation, offsetVector == null);
 					});
 
-					// Check and mount player
-					VehicleRidingMovement.startRiding(allFloorsAndDoorways, 0, 0, lift.getId(), 0, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), absolutePositionAndRotation.yaw);
+					if (!openDoorways.isEmpty()) {
+						// Check and mount player
+						VehicleRidingMovement.startRiding(allFloorsAndDoorways, 0, 0, lift.getId(), 0, playerPosition.getXMapped(), playerPosition.getYMapped(), playerPosition.getZMapped(), absolutePositionAndRotation.yaw);
+					}
 				}
 
 				// Render the lift
