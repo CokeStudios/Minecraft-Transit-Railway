@@ -70,6 +70,10 @@ public final class PersistentVehicleData {
 		return doorValue;
 	}
 
+	public double getOldDoorValue() {
+		return oldDoorValue;
+	}
+
 	public float getInterpolatedDoorValue(DoorAnimationType doorAnimationType, double doorZMultiplier, boolean flipped, double doorOverrideValue, boolean opening) {
 		final String key = doorZMultiplier + "_" + doorAnimationType + "_" + flipped;
 		final DoorMovementInterpolation doorMovementInterpolation = doorMovementInterpolations.get(key);
