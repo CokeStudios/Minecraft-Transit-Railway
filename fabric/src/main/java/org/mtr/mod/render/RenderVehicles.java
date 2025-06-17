@@ -165,7 +165,9 @@ public class RenderVehicles implements IGui {
 									}
 								});
 								final boolean canOpenDoors = RenderVehicleHelper.canOpenDoors(doorway, absoluteVehicleCarPositionAndRotation, Math.max(doorBlockedAmount[0], vehicle.persistentVehicleData.getDoorValue() * 2));
-								if ((doorBlockedAmount[0] > 0 || vehicle.persistentVehicleData.checkCanOpenDoors()) && canOpenDoors) {
+								final double doorValue = vehicle.persistentVehicleData.doorValue;
+								final double oldDoorValue = vehicle.persistentVehicleData.oldDoorValue;
+								if (((doorBlockedAmount[0] > 0 && !(doorValue != 0 && oldDoorValue != 0 && doorValue == oldDoorValue)) || vehicle.persistentVehicleData.checkCanOpenDoors()) && canOpenDoors) {
 									openDoorways.add(new ObjectDoubleImmutablePair<>(doorway, doorBlockedAmount[0]));
 								}
 							});
