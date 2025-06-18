@@ -125,8 +125,8 @@ public class RenderLifts implements IGui {
 				// Find open doorways (close to platform blocks, unlocked platform screen doors, or unlocked automatic platform gates)
 				final ObjectArrayList<Box> openDoorways = new ObjectArrayList<>();
 
-				final Box doorway1 = new Box(-LIFT_DOOR_VALUE, 0, -lift.getDepth() / 2 + LIFT_FLOOR_PADDING, LIFT_DOOR_VALUE, 0, -lift.getDepth() / 2 - LIFT_FLOOR_PADDING);
-				final Box doorway2 = new Box(-LIFT_DOOR_VALUE, 0, lift.getDepth() / 2 - LIFT_FLOOR_PADDING, LIFT_DOOR_VALUE, 0, lift.getDepth() / 2 + LIFT_FLOOR_PADDING);
+				final Box doorway1 = new Box(-LIFT_DOOR_VALUE, 0, -lift.getDepth() / 2 + LIFT_FLOOR_PADDING * 2, LIFT_DOOR_VALUE, 0, -lift.getDepth() / 2);
+				final Box doorway2 = new Box(-LIFT_DOOR_VALUE, 0, lift.getDepth() / 2 - LIFT_FLOOR_PADDING * 2, LIFT_DOOR_VALUE, 0, lift.getDepth() / 2);
 				final boolean doorway1Open;
 				final boolean doorway2Open;
 				if (lift.hasCoolDown()) {
