@@ -9,6 +9,7 @@ import org.mtr.mapping.holder.MinecraftClient;
 import org.mtr.mapping.holder.Window;
 import org.mtr.mapping.mapper.GraphicsHolder;
 import org.mtr.mapping.mapper.GuiDrawing;
+import org.mtr.mod.client.VehicleRidingMovement;
 import org.mtr.mod.data.IGui;
 import org.mtr.mod.data.RailType;
 import org.mtr.mod.data.VehicleExtension;
