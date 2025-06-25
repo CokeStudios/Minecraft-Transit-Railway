@@ -18,6 +18,7 @@ import org.mtr.mod.config.Config;
 import org.mtr.mod.data.IGui;
 import org.mtr.mod.generated.lang.TranslationProvider;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 
