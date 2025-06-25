@@ -56,6 +56,13 @@ public class RouteMapGenerator implements IGui {
 			final int width = Math.min(newMaxWidth, dimensions[0]) * scale;
 			final int height = dimensions[1] * scale;
 			Init.LOGGER.warn("", String.format("Width: %d, Height: %d", width, height));
+			if (width == 0) {
+				width = 1;
+			}
+
+			if (height == 0) {
+				height = 1;
+			}
 
 			final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), width, height, false);
 			nativeImage.fillRect(0, 0, width, height, 0);
