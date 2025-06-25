@@ -55,6 +55,7 @@ public class RouteMapGenerator implements IGui {
 			final byte[] pixels = DynamicTextureCache.instance.getTextPixels(text, dimensions, newMaxWidth, Integer.MAX_VALUE, (int) Math.round(PIXEL_RESOLUTION * (cjkSizeRatio > 0 ? cjkSizeRatio + 1 : 1)), (int) Math.round(PIXEL_RESOLUTION * (cjkSizeRatio < 0 ? 1 - cjkSizeRatio : 1)), 0, HorizontalAlignment.CENTER);
 			final int width = Math.min(newMaxWidth, dimensions[0]) * scale;
 			final int height = dimensions[1] * scale;
+			Init.LOGGER.warn("", String.format("Width: %d, Height: %d", width, height));
 
 			final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), width, height, false);
 			nativeImage.fillRect(0, 0, width, height, 0);
