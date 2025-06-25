@@ -66,7 +66,7 @@ public class RouteMapGenerator implements IGui {
 
 			final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), width, height, false);
 			nativeImage.fillRect(0, 0, width, height, 0);
-			Init.LOGGER.warn(String.format("pixels: %s, dimensions: %s, textColor: %d, fullPixel: %s", new String(pixels), new String(dimensions), textColor, String.valueOf(fullPixel)));
+			Init.LOGGER.warn(String.format("pixels: %s, dimensions: %s, textColor: %d, fullPixel: %s", new String(pixels), Arrays.toString(dimensions), textColor, String.valueOf(fullPixel)));
 			drawStringPixelated(nativeImage, pixels, dimensions, textColor, fullPixel);
 			return nativeImage;
 		} catch (Exception e) {
