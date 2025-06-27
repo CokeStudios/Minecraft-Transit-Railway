@@ -18,7 +18,6 @@ import org.mtr.mod.config.Config;
 import org.mtr.mod.data.IGui;
 import org.mtr.mod.generated.lang.TranslationProvider;
 
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.function.BiConsumer;
 
@@ -57,17 +56,8 @@ public class RouteMapGenerator implements IGui {
 			int width = Math.min(newMaxWidth, dimensions[0]) * scale;
 			int height = dimensions[1] * scale;
 			Init.LOGGER.warn(String.format("Width: %d, Height: %d", width, height));
-			if (width == 0) {
-				width = 1;
-			}
-
-			if (height == 0) {
-				height = 1;
-			}
-
 			final NativeImage nativeImage = new NativeImage(NativeImageFormat.getAbgrMapped(), width, height, false);
 			nativeImage.fillRect(0, 0, width, height, 0);
-			Init.LOGGER.warn(String.format("pixels: %s, dimensions: %s, textColor: %d, fullPixel: %s", new String(pixels), Arrays.toString(dimensions), textColor, String.valueOf(fullPixel)));
 			drawStringPixelated(nativeImage, pixels, dimensions, textColor, fullPixel);
 			return nativeImage;
 		} catch (Exception e) {
