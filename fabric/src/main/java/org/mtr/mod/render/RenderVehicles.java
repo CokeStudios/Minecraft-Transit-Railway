@@ -2,6 +2,7 @@ package org.mtr.mod.render;
 
 import com.logisticscraft.occlusionculling.OcclusionCullingInstance;
 import com.logisticscraft.occlusionculling.util.Vec3d;
+import org.mtr.core.data.TransportMode;
 import org.mtr.core.data.VehicleCar;
 import org.mtr.core.tool.Utilities;
 import org.mtr.core.tool.Vector;
@@ -179,6 +180,9 @@ public class RenderVehicles implements IGui {
 							if (vehicleResourceCache != null) {
 								vehicleResourceCache.floors.forEach(floor -> {
 									floorsAndDoorways.add(new ObjectBooleanImmutablePair<>(floor, true));
+									if (vehicle.getTransportMode() == TransportMode.BOAT) {
+										openFloorsAndDoorways.add(floor);
+									}
 									if (!VehicleRidingMovement.isRiding(vehicle.getId())) {
 										final ItemDriverKey driverKey = VehicleRidingMovement.getValidHoldingKey(vehicle.vehicleExtraData.getDepotId());
 										if (driverKey != null && (driverKey.canBoardAnyVehicle || vehicle.vehicleExtraData.getIsManualAllowed())) {
