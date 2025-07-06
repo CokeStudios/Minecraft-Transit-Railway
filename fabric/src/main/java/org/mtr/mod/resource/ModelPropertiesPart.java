@@ -461,7 +461,6 @@ public final class ModelPropertiesPart extends ModelPropertiesPartSchema impleme
 					scrollingTexts.add(new ScrollingText(width, height, 4, height < 0.1));
 				}
 
-				Init.LOGGER.warn("Text: " + text);
 				scrollingTexts.get(scrollingDisplayIndexTracker[0]).changeImage(text.isEmpty() ? null : DynamicTextureCache.instance.getPixelatedText(text, ARGB_BLACK | displayColorInt, Integer.MAX_VALUE, displayCjkSizeRatio, height < 0.1));
 				scrollingTexts.get(scrollingDisplayIndexTracker[0]).scrollText(storedMatrixTransformations2);
 				scrollingDisplayIndexTracker[0]++;
