@@ -36,7 +36,6 @@ jobs:
       - name: Build mod
         run: ./gradlew build --no-daemon
       - name: Capture release artifacts
-        if: env.BUILD_ARTIFACTS == 'true'
         uses: actions/upload-artifact@main
         with:
           name: Minecraft Transit Railway
